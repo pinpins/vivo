@@ -134,7 +134,7 @@ public:
         vSeeds.push_back(CDNSSeedData("seed.seeds.vivocoin.net", "seed.seeds.vivocoin.net"));
         vSeeds.push_back(CDNSSeedData("seed.vivocoinseed.dynu.net", "seed.vivocoinseed.dynu.net"));
         vSeeds.push_back(CDNSSeedData("vivoseed.hashcube.com", "vivoseed.hashcube.com"));		
-        vSeeds.push_back(CDNSSeedData("vivoseed.mm.my", "vivoseed.mm.my"));		
+        vSeeds.push_back(CDNSSeedData("vivoseed.mm.my", "vivoseed.mm.my"));	
 
         // Vivo addresses start with 'V'
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,70);
@@ -182,8 +182,9 @@ public:
 			(308000, uint256S("0x0000000018ee47a3c93296309ce207724868232706f59a6937362581476ce462"))
 			(349891, uint256S("0x000000000965eb7af631e8717d10b477568a699cbb5cc172f723204f699e3488"))
 			(378129, uint256S("0x000000002f22a53a0228c6b94c960ba923df660531911392841196f641970b5f"))
-			(420300, uint256S("0x0000000037e291974d11f3f0c5309632db5d1b5c70162014a11e3de7920a548b"))						
-			(444770, uint256S("0x00000000a21f0077a24e0d814dcfca41144a49d671ad2f3adb9f5fe5f509efaa")),			
+            (420300, uint256S("0x0000000037e291974d11f3f0c5309632db5d1b5c70162014a11e3de7920a548b"))
+            (444770, uint256S("0x00000000a21f0077a24e0d814dcfca41144a49d671ad2f3adb9f5fe5f509efaa"))
+            (1609120, uint256S("0x0000000108fede83d2b988fc9af0b075a2e2565e557d1fa3bc2e81b1b0c94b47")),	
             1561331573, // * UNIX timestamp of last checkpoint block
             5000,     // * total number of transactions between genesis and last checkpoint
                         //   (the tx=... number in the SetBestChain debug.log lines)
