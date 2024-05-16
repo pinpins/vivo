@@ -5291,7 +5291,29 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         uint64_t nNonce = 1;
         vRecv >> pfrom->nVersion >> pfrom->nServices >> nTime >> addrMe;
 
-        if (pfrom->nVersion < MIN_PEER_PROTO_VERSION)
+
+
+#define LEGACY_TWO_WEEKS_SINCE_BLOCK 414483
+#define LEGACY_FOUR_WEEKS_SINCE_BLOCK 423443
+#define LEGACY_SIX_WEEKS_SINCE_BLOCK 432403
+
+
+//May 15, 2019 6:19:38 PM
+// Current420307
+#define TWO_WEEKS_SINCE_BLOCK 429267
+#define FOUR_WEEKS_SINCE_BLOCK 438227
+#define SIX_WEEKS_SINCE_BLOCK 447187
+#define THREE_MONTHS_SINCE_BLOCK 474067
+#define FOUR_MONTHS_PLUS_TWOWEEKS_SINCE_BLOCK 500947
+#define SIX_MONTHS_PLUS_TWOWEEKS_SINCE_BLOCK 559811
+
+	    //if (chainActive.Height() > SIX_MONTHS_PLUS_TWOWEEKS_SINCE_BLOCK) {
+		//	LogPrintf("YOU NEED TO GET NEW VERSION- UPGRADE VIVO\n");
+		//	StartShutdown(); 		
+		//}
+		
+		
+        if (pfrom->nVersion < 70210)
         {
             // disconnect from peers older than this proto version
             LogPrintf("peer=%d using obsolete version %i; disconnecting addr=%s <<%i>>\n", pfrom->id, pfrom->nVersion, pfrom->addr.ToString(), pfrom->strSubVer);
@@ -5301,6 +5323,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             return false;
         }
 	
+	//zzzremove
+	LogPrintf("------------- peer=%d using strSubver <<%i>> height %d\n", pfrom->id, pfrom->strSubVer, chainActive.Height());
+
         if (pfrom->nVersion == 10300)
             pfrom->nVersion = 300;
         if (!vRecv.empty())
@@ -5309,13 +5334,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             vRecv >> LIMITED_STRING(pfrom->strSubVer, MAX_SUBVERSION_LENGTH);
             pfrom->cleanSubVer = SanitizeString(pfrom->strSubVer);
         }
-
-        if (pfrom->cleanSubVer.find("0.12.1.17") == std::string::npos )
-        {
-            LogPrintf("*******************  peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->cleanSubVer);
-            pfrom->fDisconnect = true;
-            return false;
-        }
+		
         if (!vRecv.empty())
             vRecv >> pfrom->nStartingHeight;
 		
@@ -5416,9 +5435,16 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
         pfrom->fClient = !(pfrom->nServices & NODE_NETWORK);
 
+        CNodeState* pNodeState = NULL;
+        {
+            LOCK(cs_main);
+            pNodeState = State(pfrom->GetId());
+            assert(pNodeState);
+        }
+
         // Potentially mark this peer as a preferred download peer.
-        UpdatePreferredDownload(pfrom, State(pfrom->GetId()));
-        
+        UpdatePreferredDownload(pfrom, pNodeState);
+
         // Change version
         pfrom->PushMessage(NetMsgType::VERACK);
         pfrom->ssSend.SetVersion(min(pfrom->nVersion, PROTOCOL_VERSION));
