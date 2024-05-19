@@ -331,14 +331,13 @@ void CAddrMan::Attempt_(const CService& addr, int64_t nTime)
 
 CAddrInfo CAddrMan::Select_(bool newOnly)
 {
+    int nRetries = 0;
+
     if (size() == 0)
         return CAddrInfo();
 
     if (newOnly && nNew == 0)
         return CAddrInfo();
-
-    // Track number of attempts to find a table entry, before giving up
-    int nRetries = 0;
 
     // Use a 50% chance for choosing between tried and new table entries.
     if (!newOnly &&
