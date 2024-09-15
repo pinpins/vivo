@@ -49,17 +49,18 @@ bool CMasternodeSync::CheckNodeHeight(CNode* pnode, bool fDisconnectStuckNodes)
 bool CMasternodeSync::IsBlockchainSynced(bool fBlockAccepted)
 {
     static bool fBlockchainSynced = false;
-    static int64_t nTimeLastProcess = GetTime();
     static int nSkipped = 0;
     static bool fFirstBlockAccepted = false;
+
+    if(!pCurrentBlockIndex || !pindexBestHeader || fImporting || fReindex) return false;
+
+    static int64_t nTimeLastProcess = GetTime();
 
     // if the last call to this function was more than 60 minutes ago (client was in sleep mode) reset the sync process
     if(GetTime() - nTimeLastProcess > 60*60) {
         Reset();
         fBlockchainSynced = false;
     }
-
-    if(!pCurrentBlockIndex || !pindexBestHeader || fImporting || fReindex) return false;
 
     if(fBlockAccepted) {
         // this should be only triggered while we are still syncing
@@ -168,33 +169,37 @@ void CMasternodeSync::SwitchToNextAsset()
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(MASTERNODE_SYNC_SPORKS):
+            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %ss\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nTimeLastMasternodeList = GetTime();
             nRequestedMasternodeAssets = MASTERNODE_SYNC_LIST;
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(MASTERNODE_SYNC_LIST):
+            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %ss\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nTimeLastPaymentVote = GetTime();
             nRequestedMasternodeAssets = MASTERNODE_SYNC_MNW;
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(MASTERNODE_SYNC_MNW):
+            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %ss\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nTimeLastGovernanceItem = GetTime();
             nRequestedMasternodeAssets = MASTERNODE_SYNC_GOVERNANCE;
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(MASTERNODE_SYNC_GOVERNANCE):
-            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Sync has finished\n");
+            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %ss\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nRequestedMasternodeAssets = MASTERNODE_SYNC_FINISHED;
             uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
             //try to activate our masternode if possible
             activeMasternode.ManageState();
 
             TRY_LOCK(cs_vNodes, lockRecv);
-            if(!lockRecv) return;
-
-            BOOST_FOREACH(CNode* pnode, vNodes) {
-                netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
+            if(lockRecv) {
+                BOOST_FOREACH(CNode* pnode, vNodes) {
+                    netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
+                }
             }
+            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Sync has finished\n");
 
             break;
     }
@@ -374,6 +379,12 @@ void CMasternodeSync::ProcessTick()
                     return;
                 }
 
+                // request from three peers max
+                if (nRequestedMasternodeAttempt > 2) {
+                    ReleaseNodeVector(vNodesCopy);
+                    return;
+                }
+
                 // only request once from each peer
                 if(netfulfilledman.HasFulfilledRequest(pnode->addr, "masternode-list-sync")) continue;
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "masternode-list-sync");
@@ -414,6 +425,12 @@ void CMasternodeSync::ProcessTick()
                 if(nRequestedMasternodeAttempt > 1 && mnpayments.IsEnoughData()) {
                     LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nRequestedMasternodeAssets %d -- found enough data\n", nTick, nRequestedMasternodeAssets);
                     SwitchToNextAsset();
+                    ReleaseNodeVector(vNodesCopy);
+                    return;
+                }
+
+                // request from three peers max
+                if (nRequestedMasternodeAttempt > 2) {
                     ReleaseNodeVector(vNodesCopy);
                     return;
                 }
@@ -487,11 +504,6 @@ void CMasternodeSync::ProcessTick()
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "governance-sync");
 
                 if (pnode->nVersion < MIN_GOVERNANCE_PEER_PROTO_VERSION) continue;
-				if(pnode->nVersion == 70209) continue;	
-				if(pnode->nVersion == 70208) continue;	
-				//exsplit
-				//LogPrintf("BBBBBB  <%i> <%i> %d \n", pnode->strSubVer, pnode->cleanSubVer, pnode->nVersion);				
-				
                 nRequestedMasternodeAttempt++;
 
                 SendGovernanceSyncRequest(pnode);
@@ -507,11 +519,6 @@ void CMasternodeSync::ProcessTick()
 
 void CMasternodeSync::SendGovernanceSyncRequest(CNode* pnode)
 {
-	//LogPrintf("AAAAAA  <%i> <%i> %d \n", pnode->strSubVer, pnode->cleanSubVer, pnode->nVersion);
-    if(pnode->nVersion != 70209)	
-	if(pnode->nVersion != 70208)	
-	//exsplit	
-
     if(pnode->nVersion >= GOVERNANCE_FILTER_PROTO_VERSION) {
         CBloomFilter filter;
         filter.clear();

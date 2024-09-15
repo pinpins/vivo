@@ -26,20 +26,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
     std::string strCommand;
     if (params.size() >= 1)
         strCommand = params[0].get_str();
-	
-    if (params.size() > 0)	
-         LogPrintf("%% gobject --%s:", strCommand);
-	int nn;
-	for (nn=0; nn < params.size(); nn++)	{
-		std::string strC;
-		strC = params[nn].get_str();
-        LogPrintf("<%s> ", params[nn].get_str());		
-	}
 
-    if (params.size() > 0)	
-         LogPrintf("\n");
-		 
-	 
     if (fHelp  ||
         (strCommand != "vote-many" && strCommand != "vote-conf" && strCommand != "vote-alias" && strCommand != "prepare" && strCommand != "submit" && strCommand != "count" &&
          strCommand != "deserialize" && strCommand != "get" && strCommand != "getvotes" && strCommand != "getcurrentvotes" && strCommand != "list" && strCommand != "diff"))
@@ -215,7 +202,10 @@ UniValue gobject(const UniValue& params, bool fHelp)
         std::string strHash = govobj.GetHash().ToString();
 
         std::string strError = "";
-        if(!govobj.IsValidLocally(strError, true)) {
+        bool fMissingMasternode;
+        bool fMissingConfirmations;
+        if(!govobj.IsValidLocally(strError, fMissingMasternode, fMissingConfirmations, true) && !fMissingConfirmations) {
+//        if(!govobj.IsValidLocally(strError, true)) {
             LogPrintf("gobject(submit) -- Object submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, strError);
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + strHash + " - " + strError);
         }
@@ -231,11 +221,18 @@ UniValue gobject(const UniValue& params, bool fHelp)
             LogPrintf("gobject(submit) -- Object submission rejected because of rate check failure (buffer updated) - hash = %s\n", strHash);
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Object creation rate limit exceeded");
         }
-        governance.AddSeenGovernanceObject(govobj.GetHash(), SEEN_OBJECT_IS_VALID);
-        govobj.Relay();
+        // governance.AddSeenGovernanceObject(govobj.GetHash(), SEEN_OBJECT_IS_VALID);
+        // govobj.Relay();
         LogPrintf("gobject(submit) -- Adding locally created governance object - %s\n", strHash);
-        bool fAddToSeen = true;
-        governance.AddGovernanceObject(govobj, fAddToSeen);
+        // bool fAddToSeen = true;
+        // governance.AddGovernanceObject(govobj, fAddToSeen);
+
+        if(fMissingConfirmations) {
+            governance.AddPostponedObject(govobj);
+            govobj.Relay();
+        } else {
+            governance.AddGovernanceObject(govobj);
+        }
 
         return govobj.GetHash().ToString();
     }

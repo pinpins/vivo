@@ -866,7 +866,8 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
         // we might have to ask for a masternode entry once
         AskForMN(pfrom, mnp.vin);
 
-    } else if (strCommand == NetMsgType::DSEG) { //Get Masternode list or specific entry
+    } else if (strCommand == NetMsgType::DSEG) {
+        //Get Masternode list or specific entry
         // Ignore such requests until we are fully synced.
         // We could start processing this after masternode list is synced
         // but this is a heavy one so it's better to finish sync first.
@@ -884,14 +885,11 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
             bool isLocal = (pfrom->addr.IsRFC1918() || pfrom->addr.IsLocal());
 
             if(!isLocal && Params().NetworkIDString() == CBaseChainParams::MAIN) {
-                std::map<CNetAddr, int64_t>::iterator i = mAskedUsForMasternodeList.find(pfrom->addr);
-                if (i != mAskedUsForMasternodeList.end()){
-                    int64_t t = (*i).second;
-                    if (GetTime() < t) {
-                        Misbehaving(pfrom->GetId(), 34);
-                        LogPrintf("DSEG -- peer already asked me for the list, peer=%d\n", pfrom->id);
-                        return;
-                    }
+                std::map<CNetAddr, int64_t>::iterator it = mAskedUsForMasternodeList.find(pfrom->addr);
+                if (it != mAskedUsForMasternodeList.end() && it->second > GetTime()) {
+                    Misbehaving(pfrom->GetId(), 34);
+                    LogPrintf("DSEG -- peer already asked me for the list, peer=%d\n", pfrom->id);
+                    return;
                 }
                 int64_t askAgain = GetTime() + DSEG_UPDATE_SECONDS;
                 mAskedUsForMasternodeList[pfrom->addr] = askAgain;
@@ -1378,7 +1376,7 @@ std::string CMasternodeMan::ToString() const
 
 void CMasternodeMan::UpdateMasternodeList(CMasternodeBroadcast mnb)
 {
-    LOCK(cs);
+    LOCK2(cs_main, cs);
     mapSeenMasternodePing.insert(std::make_pair(mnb.lastPing.GetHash(), mnb.lastPing));
     mapSeenMasternodeBroadcast.insert(std::make_pair(mnb.GetHash(), std::make_pair(GetTime(), mnb)));
 

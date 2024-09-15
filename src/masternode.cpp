@@ -292,8 +292,12 @@ bool CMasternode::IsValidNetAddr(CService addrIn)
 {
     // TODO: regtest is fine with any addresses for now,
     // should probably be a bit smarter if one day we start to implement tests for this
+
+    // since appears that IPv6 is allowed, maybe do it like this, so it has even remote
+    // chance return something after address validation - be it ipv4/ipv6/tor
+    // thoughts about 48h after writing ^ ipv6 is NOT allowed and not covered any other functions, so removing IsIPv6()
     return Params().NetworkIDString() == CBaseChainParams::REGTEST ||
-            (IsReachable(addrIn) && addrIn.IsRoutable());
+        (addrIn.IsIPv4() && IsReachable(addrIn) && addrIn.IsRoutable());
 }
 
 masternode_info_t CMasternode::GetInfo()
@@ -536,11 +540,12 @@ bool CMasternodeBroadcast::SimpleCheck(int& nDos)
         return false;
     }
 
+/*
     int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
-    /*if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
+    if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
         if(addr.GetPort() != mainnetDefaultPort) return false;
     } else if(addr.GetPort() == mainnetDefaultPort) return false;
-	*/
+*/
     return true;
 }
 
@@ -819,7 +824,7 @@ bool CMasternodePing::CheckAndUpdate(CMasternode* pmn, bool fFromNewBroadcast, i
     }
 
     {
-        LOCK(cs_main);
+        AssertLockHeld(cs_main);
         BlockMap::iterator mi = mapBlockIndex.find(blockHash);
         if ((*mi).second && (*mi).second->nHeight < chainActive.Height() - 24) {
             LogPrintf("CMasternodePing::CheckAndUpdate -- Masternode ping is invalid, block hash is too old: masternode=%s  blockHash=%s\n", vin.prevout.ToStringShort(), blockHash.ToString());
@@ -862,8 +867,10 @@ bool CMasternodePing::CheckAndUpdate(CMasternode* pmn, bool fFromNewBroadcast, i
         mnodeman.mapSeenMasternodeBroadcast[hash].second.lastPing = *this;
     }
 
-    pmn->Check(true); // force update, ignoring cache
-    if (!pmn->IsEnabled()) return false;
+    // force update, ignoring cache
+    pmn->Check(true);
+    // relay ping for nodes in ENABLED/EXPIRED/WATCHDOG_EXPIRED state only, skip everyone else
+    if (!pmn->IsEnabled() && !pmn->IsExpired() && !pmn->IsWatchdogExpired()) return false;
 
     LogPrint("masternode", "CMasternodePing::CheckAndUpdate -- Masternode ping acceepted and relayed, masternode=%s\n", vin.prevout.ToStringShort());
     Relay();

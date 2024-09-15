@@ -116,13 +116,13 @@ public:
         pchMessageStart[1] = 0x42;
         pchMessageStart[2] = 0x5b;
         pchMessageStart[3] = 0xa7;
-		
+
         //vAlertPubKey = ParseHex("04213196463a1b3d9cc2e353a6dc721d992e4177f8988a16a41665e36d1ef78ebce5ccbe66c393e90ab8447e88767242ccfa520eb6c0c1ba2a471b803ee0b2d680");
         vAlertPubKey = ParseHex("0476a1ada6f2c9b5ad0a61b1abfc58ed684cf67466d4e519f0a27161dd25f85560dccb309e39a6fdd2e91fb8f6e808b59f3c4044bff4df4d41b35d441c75938f4f");
-        
-		
-		nDefaultPort = 12845;
+
+        nDefaultPort = 12845;
         nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
+        nDelayGetHeadersTime = 24 * 60 * 60;
         nPruneAfterHeight = 100000;
 
         genesis = CreateGenesisBlock(1503127892, 2432118, 0x1e0ffff0, 1, 50 * COIN);
@@ -182,8 +182,9 @@ public:
 			(308000, uint256S("0x0000000018ee47a3c93296309ce207724868232706f59a6937362581476ce462"))
 			(349891, uint256S("0x000000000965eb7af631e8717d10b477568a699cbb5cc172f723204f699e3488"))
 			(378129, uint256S("0x000000002f22a53a0228c6b94c960ba923df660531911392841196f641970b5f"))
-			(420300, uint256S("0x0000000037e291974d11f3f0c5309632db5d1b5c70162014a11e3de7920a548b"))						
-			(444770, uint256S("0x00000000a21f0077a24e0d814dcfca41144a49d671ad2f3adb9f5fe5f509efaa")),			
+			(420300, uint256S("0x0000000037e291974d11f3f0c5309632db5d1b5c70162014a11e3de7920a548b"))
+			(444770, uint256S("0x00000000a21f0077a24e0d814dcfca41144a49d671ad2f3adb9f5fe5f509efaa"))
+			(1609120, uint256S("0x0000000108fede83d2b988fc9af0b075a2e2565e557d1fa3bc2e81b1b0c94b47")),
             1561331573, // * UNIX timestamp of last checkpoint block
             5000,     // * total number of transactions between genesis and last checkpoint
                         //   (the tx=... number in the SetBestChain debug.log lines)
@@ -244,6 +245,7 @@ public:
 
         nDefaultPort = 13845;
         nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
+        nDelayGetHeadersTime = 24 * 60 * 60;
         nPruneAfterHeight = 1000;
 
 	genesis = CreateGenesisBlock(1503127892, 2432118, 0x1e0ffff0, 1, 50 * COIN);
@@ -344,6 +346,7 @@ public:
         pchMessageStart[3] = 0x7a;
         nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
         nDefaultPort = 13855;
+        nDelayGetHeadersTime = 0;
         nPruneAfterHeight = 1000;
 
         genesis = CreateGenesisBlock(1503127892, 2432118, 0x1e0ffff0, 1, 50 * COIN);

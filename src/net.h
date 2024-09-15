@@ -17,6 +17,7 @@
 #include "uint256.h"
 #include "util.h"
 
+#include <atomic>
 #include <deque>
 #include <stdint.h>
 
@@ -42,6 +43,8 @@ static const int PING_INTERVAL = 2 * 60;
 static const int TIMEOUT_INTERVAL = 20 * 60;
 /** Minimum time between warnings printed to log. */
 static const int WARNING_INTERVAL = 10 * 60;
+/** Run the feeler connection loop once every 2 minutes or 120 seconds. **/
+static const int FEELER_INTERVAL = 120;
 /** The maximum number of entries in an 'inv' protocol message */
 static const unsigned int MAX_INV_SZ = 50000;
 /** The maximum number of new addresses to accumulate before announcing. */
@@ -88,7 +91,7 @@ CNode* FindNode(const CService& ip);
 // fConnectToMasternode should be 'true' only if you want this node to allow to connect to itself
 // and/or you want it to be disconnected on CMasternodeMan::ProcessMasternodeConnections()
 CNode* ConnectNode(CAddress addrConnect, const char *pszDest = NULL, bool fConnectToMasternode = false);
-bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant *grantOutbound = NULL, const char *strDest = NULL, bool fOneShot = false);
+bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant *grantOutbound = NULL, const char *strDest = NULL, bool fOneShot = false, bool fFeeler = false);
 void MapPort(bool fUseUPnP);
 unsigned short GetListenPort();
 bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhitelisted = false);
@@ -202,6 +205,8 @@ public:
     std::string cleanSubVer;
     bool fInbound;
     int nStartingHeight;
+    int64_t nLastBlockTime;
+    int64_t nLastTXTime;
     uint64_t nSendBytes;
     uint64_t nRecvBytes;
     bool fWhitelisted;
@@ -350,6 +355,7 @@ public:
     // the network or wire types and the cleaned string used when displayed or logged.
     std::string strSubVer, cleanSubVer;
     bool fWhitelisted; // This peer can bypass DoS banning.
+    bool fFeeler;  // If true this node is being used as a short lived feeler.
     bool fOneShot;
     bool fClient;
     bool fInbound;
@@ -407,6 +413,13 @@ public:
     // Used for headers announcements - unfiltered blocks to relay
     // Also protected by cs_inventory
     std::vector<uint256> vBlockHashesToAnnounce;
+    // Blocks received by INV while headers chain was too far behind. These are used to delay GETHEADERS messages
+    // Also protected by cs_inventory
+    std::vector<uint256> vBlockHashesFromINV;
+
+    // Block and TXN accept times
+    std::atomic<int64_t> nLastBlockTime;
+    std::atomic<int64_t> nLastTXTime;
 
     // Ping time measurement:
     // The pong reply we're expecting, or 0 if no pong expected.
@@ -540,6 +553,12 @@ public:
     {
         LOCK(cs_inventory);
         vBlockHashesToAnnounce.push_back(hash);
+    }
+
+    void PushBlockHashFromINV(const uint256 &hash)
+    {
+        LOCK(cs_inventory);
+        vBlockHashesFromINV.push_back(hash);
     }
 
     void AskFor(const CInv& inv);

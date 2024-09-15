@@ -337,12 +337,15 @@ CAddrInfo CAddrMan::Select_(bool newOnly)
     if (newOnly && nNew == 0)
         return CAddrInfo();
 
+    // Track number of attempts to find a table entry, before giving up
+    int nRetries = 0;
+
     // Use a 50% chance for choosing between tried and new table entries.
     if (!newOnly &&
-       (nTried > 0 && (nNew == 0 || GetRandInt(2) == 0))) { 
+       (nTried > 0 && (nNew == 0 || GetRandInt(2) == 0))) {
         // use a tried node
         double fChanceFactor = 1.0;
-        while (1) {
+        while (nRetries++ < ADDRMAN_TRIED_BUCKET_COUNT) {
             int nKBucket = GetRandInt(ADDRMAN_TRIED_BUCKET_COUNT);
             int nKBucketPos = GetRandInt(ADDRMAN_BUCKET_SIZE);
             while (vvTried[nKBucket][nKBucketPos] == -1) {
@@ -355,11 +358,12 @@ CAddrInfo CAddrMan::Select_(bool newOnly)
             if (GetRandInt(1 << 30) < fChanceFactor * info.GetChance() * (1 << 30))
                 return info;
             fChanceFactor *= 1.2;
+            MilliSleep(100);
         }
     } else {
         // use a new node
         double fChanceFactor = 1.0;
-        while (1) {
+        while (nRetries++ < ADDRMAN_NEW_BUCKET_COUNT) {
             int nUBucket = GetRandInt(ADDRMAN_NEW_BUCKET_COUNT);
             int nUBucketPos = GetRandInt(ADDRMAN_BUCKET_SIZE);
             while (vvNew[nUBucket][nUBucketPos] == -1) {
@@ -372,8 +376,11 @@ CAddrInfo CAddrMan::Select_(bool newOnly)
             if (GetRandInt(1 << 30) < fChanceFactor * info.GetChance() * (1 << 30))
                 return info;
             fChanceFactor *= 1.2;
+            MilliSleep(100);
         }
     }
+
+    return CAddrInfo();
 }
 
 #ifdef DEBUG_ADDRMAN
